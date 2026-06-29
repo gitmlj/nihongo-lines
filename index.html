@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>日剧台词播放器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: #f5f0eb;
+      color: #2e2e2e;
+      padding: 20px 16px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      font-weight: 400;
+      font-size: 1.8rem;
+      margin-bottom: 32px;
+      letter-spacing: 0.05em;
+      color: #4a3f35;
+    }
+
+    /* 台词卡片 */
+    .line-card {
+      background: white;
+      border-radius: 18px;
+      padding: 18px 16px 14px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .romaji {
+      font-size: 0.95rem;
+      color: #7a6e64;
+      margin-bottom: 6px;
+      font-style: italic;
+      letter-spacing: 0.02em;
+    }
+
+    .japanese {
+      font-size: 1.4rem;
+      font-weight: 500;
+      margin-bottom: 4px;
+      line-height: 1.5;
+    }
+
+    .chinese {
+      font-size: 1rem;
+      color: #555;
+      margin-bottom: 12px;
+    }
+
+    /* 底部控制栏 */
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid #eee;
+      padding-top: 12px;
+    }
+
+    .play-btn {
+      background: none;
+      border: none;
+      font-size: 1.8rem;
+      cursor: pointer;
+      padding: 4px 8px;
+      line-height: 1;
+      color: #b08968;
+      transition: transform 0.1s;
+    }
+
+    .play-btn:active {
+      transform: scale(0.92);
+    }
+
+    .loop-toggle {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.85rem;
+      color: #999;
+      cursor: pointer;
+      user-select: none;
+      background: none;
+      border: 1px solid transparent;
+      padding: 4px 10px;
+      border-radius: 20px;
+      transition: all 0.2s;
+    }
+
+    .loop-toggle.active {
+      color: #b08968;
+      border-color: #b08968;
+      background: #faf3ed;
+      font-weight: 500;
+    }
+
+    .loop-icon {
+      font-size: 1.2rem;
+    }
+
+    /* 播放中卡片微微高亮 */
+    .line-card.playing {
+      box-shadow: 0 0 0 2px #d9b99b;
+    }
+
+    /* 加载或错误提示 */
+    .status-message {
+      text-align: center;
+      padding: 40px;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📺 台词练习</h1>
+    <div id="lines-container">
+      <!-- 动态生成 -->
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const container = document.getElementById('lines-container');
+
+      // 全局状态
+      let currentAudio = null;          // 当前正在播放的 Audio 实例
+      let currentLineIndex = null;      // 正在播放的台词索引（用于高亮）
+      const loopStates = {};            // 存储每句的循环开关状态 { index: true/false }
+
+      // 停止当前播放并清理
+      function stopCurrent() {
+        if (currentAudio) {
+          currentAudio.pause();
+          currentAudio.currentTime = 0;
+          currentAudio = null;
+        }
+        // 移除高亮
+        if (currentLineIndex !== null) {
+          const prevCard = document.querySelector(`.line-card[data-index='${currentLineIndex}']`);
+          if (prevCard) prevCard.classList.remove('playing');
+          currentLineIndex = null;
+        }
+      }
+
+      // 播放指定索引的音频
+      function playLine(index, audioSrc, loop) {
+        stopCurrent();
+
+        const audio = new Audio(audioSrc);
+        audio.loop = loop;
+
+        audio.play().catch(err => {
+          console.warn('播放失败:', err);
+        });
+
+        currentAudio = audio;
+        currentLineIndex = index;
+
+        // 高亮当前卡片
+        const card = document.querySelector(`.line-card[data-index='${index}']`);
+        if (card) card.classList.add('playing');
+
+        // 播放结束清理状态（非循环时）
+        audio.addEventListener('ended', () => {
+          if (!audio.loop) {
+            stopCurrent();
+          }
+        });
+
+        // 如果用户再次点击同一句（且非循环），根据需求可以重新播放或停止
+        // 这里设计：如果音频正在播放且不是循环，再次点击就停止；否则重新播放（通过外部控制）
+      }
+
+      // 切换循环状态
+      function toggleLoop(index, buttonElement, audioSrc) {
+        const isNowActive = !loopStates[index];
+        loopStates[index] = isNowActive;
+
+        // 更新按钮样式
+        if (isNowActive) {
+          buttonElement.classList.add('active');
+          buttonElement.querySelector('.loop-text').textContent = '循环中';
+        } else {
+          buttonElement.classList.remove('active');
+          buttonElement.querySelector('.loop-text').textContent = '循环';
+        }
+
+        // 如果当前正在播放这一句，立即更新 Audio 的 loop 属性
+        if (currentLineIndex === index && currentAudio) {
+          currentAudio.loop = isNowActive;
+        }
+        // 如果开启了循环且当前没有播放，不做额外操作
+        // 如果关闭了循环且正在播放，音频会在结束后自然停止
+      }
+
+      // 处理台词卡片的点击（播放按钮或整个卡片？这里用播放按钮明确触发）
+      function handlePlayClick(index, audioSrc) {
+        // 如果正在播放同一句
+        if (currentLineIndex === index && currentAudio && !currentAudio.paused) {
+          // 如果当前是循环模式，再次点击就停止（方便退出循环）
+          if (currentAudio.loop) {
+            stopCurrent();
+            // 同时可选关闭循环（也可以保留，这里设计点击停止循环）
+            // 但保留用户手动设置的循环状态，只是停止播放。下次点击又会以循环模式播放。
+          } else {
+            // 非循环模式，再次点击就重新从头播放
+            stopCurrent();
+            const shouldLoop = loopStates[index] || false;
+            playLine(index, audioSrc, shouldLoop);
+          }
+        } else {
+          // 不同句，或当前没有播放
+          stopCurrent();
+          const shouldLoop = loopStates[index] || false;
+          playLine(index, audioSrc, shouldLoop);
+        }
+      }
+
+      // 渲染所有台词
+      function renderLines(lines) {
+        if (!lines || lines.length === 0) {
+          container.innerHTML = '<div class="status-message">暂无台词数据</div>';
+          return;
+        }
+
+        let html = '';
+        lines.forEach((line, index) => {
+          // 初始化循环状态
+          if (!(index in loopStates)) {
+            loopStates[index] = false;
+          }
+
+          html += `
+            <div class="line-card" data-index="${index}">
+              <div class="romaji">${escapeHtml(line.romaji)}</div>
+              <div class="japanese">${escapeHtml(line.japanese)}</div>
+              <div class="chinese">${escapeHtml(line.chinese)}</div>
+              <div class="controls">
+                <button class="play-btn" data-action="play" data-index="${index}" data-audio="${escapeHtml(line.audio)}" aria-label="播放">
+                  ▶
+                </button>
+                <div class="loop-toggle" data-action="loop" data-index="${index}" data-audio="${escapeHtml(line.audio)}" role="button" tabindex="0">
+                  <span class="loop-icon">🔁</span>
+                  <span class="loop-text">循环</span>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+
+        container.innerHTML = html;
+
+        // 绑定事件
+        container.addEventListener('click', (e) => {
+          const playBtn = e.target.closest('[data-action="play"]');
+          const loopBtn = e.target.closest('[data-action="loop"]');
+
+          if (playBtn) {
+            const index = parseInt(playBtn.dataset.index);
+            const audioSrc = playBtn.dataset.audio;
+            handlePlayClick(index, audioSrc);
+          }
+
+          if (loopBtn) {
+            e.stopPropagation(); // 防止点到卡片其他区域误触
+            const index = parseInt(loopBtn.dataset.index);
+            const audioSrc = loopBtn.dataset.audio;
+            toggleLoop(index, loopBtn, audioSrc);
+          }
+        });
+
+        // 键盘可访问性（Enter 触发）
+        container.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            const loopBtn = e.target.closest('[data-action="loop"]');
+            if (loopBtn) {
+              const index = parseInt(loopBtn.dataset.index);
+              const audioSrc = loopBtn.dataset.audio;
+              toggleLoop(index, loopBtn, audioSrc);
+            }
+          }
+        });
+      }
+
+      // 简单的转义，防止XSS
+      function escapeHtml(text) {
+        return String(text)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      // 加载 data.json
+      fetch('data.json')
+        .then(response => {
+          if (!response.ok) throw new Error('加载失败');
+          return response.json();
+        })
+        .then(data => {
+          renderLines(data);
+        })
+        .catch(err => {
+          container.innerHTML = '<div class="status-message">❌ 台词数据加载失败，请检查 data.json 是否存在。</div>';
+          console.error(err);
+        });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+
+[
+  {
+    "romaji": "Chikyū-jō no dareka ga futo omotta.",
+    "japanese": "地球上（ちきゅうじょう）の誰（だれ）かが ふと 思（おも）った",
+    "chinese": "地球上的某个人忽然有了这样一种想法",
+    "audio": "audio/line001.mp3"
+  },
+  {
+    "romaji": "Zannen da… Shippai shita…",
+    "japanese": "残念（ざんねん）だ… 失敗（しっぱい）した…",
+    "chinese": "遗憾…失败了…",
+    "audio": "audio/line002.mp3"
+  },
+  {
+    "romaji": "Zannen da…",
+    "japanese": "残念（ざんねん）だ…",
+    "chinese": "真遗憾…",
+    "audio": "audio/line003.mp3"
+  }
+]
