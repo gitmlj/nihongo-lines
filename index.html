@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
   <title>日剧台词播放器</title>
   <style>
     * {
@@ -15,7 +15,7 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
       background: #f5f0eb;
       color: #2e2e2e;
-      padding: 20px 16px;
+      padding: 20px 16px 130px;  /* 底部留出控制栏高度 */
       min-height: 100vh;
     }
 
@@ -28,20 +28,63 @@
       text-align: center;
       font-weight: 400;
       font-size: 1.8rem;
-      margin-bottom: 32px;
+      margin-bottom: 20px;
       letter-spacing: 0.05em;
       color: #4a3f35;
+    }
+
+    /* 搜索区域 */
+    .search-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .search-input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid #ddd;
+      border-radius: 24px;
+      font-size: 1rem;
+      background: white;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus {
+      border-color: #b08968;
+    }
+    .filter-fav {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 24px;
+      padding: 0 14px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+      color: #666;
+    }
+    .filter-fav.active {
+      background: #fff8e7;
+      border-color: #e0b86b;
+      color: #b08968;
+    }
+    .filter-fav .star-icon {
+      font-size: 1.2rem;
     }
 
     /* 台词卡片 */
     .line-card {
       background: white;
       border-radius: 18px;
-      padding: 18px 16px 14px;
-      margin-bottom: 20px;
+      padding: 16px 16px 10px;
+      margin-bottom: 16px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.04);
       transition: all 0.2s ease;
       position: relative;
+      touch-action: pan-y;  /* 允许垂直滑动，不干扰长按 */
     }
 
     .romaji {
@@ -56,15 +99,13 @@
       font-size: 1.4rem;
       font-weight: 500;
       margin-bottom: 4px;
-      line-height: 1.8;      /* 增加行高给注音留空间 */
+      line-height: 1.8;
     }
-
-    /* 振假名（ruby）样式 */
     .japanese ruby {
       ruby-align: center;
     }
     .japanese rt {
-      font-size: 0.55em;    /* 假名小一些 */
+      font-size: 0.55em;
       color: #7a6e64;
       user-select: none;
     }
@@ -72,18 +113,53 @@
     .chinese {
       font-size: 1rem;
       color: #555;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
 
-    /* 底部控制栏 */
+    /* 进度条 */
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: #eee;
+      border-radius: 2px;
+      margin-bottom: 10px;
+      appearance: none;
+      -webkit-appearance: none;
+      outline: none;
+      cursor: pointer;
+    }
+    .progress-bar::-webkit-slider-thumb {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #b08968;
+      border: none;
+      cursor: pointer;
+    }
+    .progress-bar::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #b08968;
+      border: none;
+      cursor: pointer;
+    }
+
+    /* 底部控制栏（卡片内） */
     .controls {
       display: flex;
       align-items: center;
       justify-content: space-between;
       border-top: 1px solid #eee;
-      padding-top: 12px;
+      padding-top: 8px;
     }
-
+    .left-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
     .right-controls {
       display: flex;
       align-items: center;
@@ -99,12 +175,25 @@
       line-height: 1;
       color: #b08968;
       transition: transform 0.1s;
-      min-width: 48px;         /* 防止切换图标时宽度变化 */
+      min-width: 48px;
       text-align: center;
     }
-
     .play-btn:active {
       transform: scale(0.92);
+    }
+
+    .fav-btn {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 4px;
+      line-height: 1;
+      color: #ccc;
+      transition: color 0.2s;
+    }
+    .fav-btn.active {
+      color: #f0b400;
     }
 
     .loop-toggle {
@@ -121,14 +210,12 @@
       border-radius: 20px;
       transition: all 0.2s;
     }
-
     .loop-toggle.active {
       color: #b08968;
       border-color: #b08968;
       background: #faf3ed;
       font-weight: 500;
     }
-
     .loop-icon {
       font-size: 1.2rem;
     }
@@ -144,23 +231,124 @@
       transition: all 0.2s;
       line-height: 1;
     }
-
     .speed-btn:hover {
       border-color: #ccc;
       background: #f5f5f5;
     }
 
-    .speed-btn:active {
-      transform: scale(0.95);
-    }
-
-    /* 播放中卡片微微高亮 */
+    /* 播放中卡片高亮 */
     .line-card.playing {
       box-shadow: 0 0 0 2px #d9b99b;
     }
 
-    /* 加载或错误提示 */
-    .status-message {
+    /* 全局底部控制栏 */
+    .global-controls {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      border-top: 1px solid #e0d6cc;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+    }
+    .global-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    }
+    .now-playing {
+      font-size: 0.9rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 150px;
+      color: #4a3f35;
+    }
+    .global-buttons {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .global-btn {
+      background: none;
+      border: none;
+      font-size: 1.4rem;
+      cursor: pointer;
+      padding: 4px;
+      line-height: 1;
+      color: #b08968;
+    }
+    .global-btn.small-text {
+      font-size: 0.9rem;
+    }
+    .auto-play-btn {
+      font-size: 0.85rem;
+      color: #999;
+      background: none;
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      padding: 4px 10px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .auto-play-btn.active {
+      background: #faf3ed;
+      border-color: #b08968;
+      color: #b08968;
+      font-weight: 500;
+    }
+    .ab-btn {
+      font-size: 0.85rem;
+      color: #999;
+      background: none;
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      padding: 4px 10px;
+      cursor: pointer;
+    }
+    .ab-btn.active {
+      background: #faf3ed;
+      border-color: #b08968;
+      color: #b08968;
+      font-weight: 500;
+    }
+
+    /* 复制提示 toast */
+    .toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      z-index: 200;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .toast.show {
+      opacity: 1;
+    }
+
+    /* 搜索高亮 */
+    mark {
+      background: #ffeb99;
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+
+    .no-result {
       text-align: center;
       padding: 40px;
       color: #888;
@@ -170,214 +358,103 @@
 <body>
   <div class="container">
     <h1>📺 台词练习</h1>
-    <div id="lines-container">
-      <!-- 动态生成 -->
+
+    <!-- 搜索栏 -->
+    <div class="search-bar">
+      <input type="text" class="search-input" id="searchInput" placeholder="搜索罗马音 / 日文 / 中文...">
+      <div class="filter-fav" id="filterFavBtn">
+        <span class="star-icon">⭐</span> 仅收藏
+      </div>
+    </div>
+
+    <div id="lines-container"><!-- 动态生成 --></div>
+  </div>
+
+  <!-- 全局底部控制栏 -->
+  <div class="global-controls" id="globalControls">
+    <div class="global-info">
+      <span class="now-playing" id="nowPlayingText">未播放</span>
+    </div>
+    <div class="global-buttons">
+      <button class="global-btn" id="prevBtn" title="上一句">⏮</button>
+      <button class="global-btn" id="playPauseBtn" title="播放/暂停">▶</button>
+      <button class="global-btn" id="nextBtn" title="下一句">⏭</button>
+      <span class="global-btn small-text" id="globalSpeedDisplay">1x</span>
+      <button class="auto-play-btn" id="autoPlayBtn">自动</button>
+      <button class="ab-btn" id="abBtn">A-B</button>
     </div>
   </div>
 
+  <div class="toast" id="toast"></div>
+
   <script>
     (function() {
+      // ---------- DOM 元素 ----------
       const container = document.getElementById('lines-container');
+      const searchInput = document.getElementById('searchInput');
+      const filterFavBtn = document.getElementById('filterFavBtn');
+      const nowPlayingText = document.getElementById('nowPlayingText');
+      const playPauseBtn = document.getElementById('playPauseBtn');
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      const globalSpeedDisplay = document.getElementById('globalSpeedDisplay');
+      const autoPlayBtn = document.getElementById('autoPlayBtn');
+      const abBtn = document.getElementById('abBtn');
+      const toast = document.getElementById('toast');
 
-      // 播放状态
+      // ---------- 数据 ----------
+      let allLines = [];            // 完整数据（从 data.json 加载）
+      let filteredLines = [];      // 当前过滤后的数据（用于渲染和导航）
+
+      // ---------- 播放核心状态 ----------
       let currentAudio = null;
-      let currentLineIndex = null;
-      const loopStates = {};
-
-      // 速度控制（全局）
+      let currentAudioId = null;   // 使用 audio 路径作为唯一 ID
+      const loopStates = {};       // key: audioId, value: boolean
+      let currentSpeed = 1;
       const SPEEDS = [1, 1.25, 1.5, 2, 0.75];
-      let currentSpeed = 1;   // 默认1倍
 
-      // 播放/暂停图标
-      const PLAY_ICON = '▶';
-      const PAUSE_ICON = '⏸';
+      // 自动连播
+      let autoPlay = false;
 
-      // 更新指定卡片的播放按钮图标
-      function setPlayButtonIcon(index, icon) {
-        const card = document.querySelector(`.line-card[data-index='${index}']`);
-        if (card) {
-          const btn = card.querySelector('.play-btn');
-          if (btn) btn.textContent = icon;
-        }
+      // A-B 循环
+      let abActive = false;        // AB 循环是否已激活并工作中
+      let abPhase = null;          // 'setA' | 'setB' | null  (设置阶段)
+      let pointA = 0;
+      let pointB = 0;
+      let abAudioId = null;        // 当前 AB 循环对应的音频 ID
+
+      // 收藏
+      let favorites = new Set();   // 存储 audioId
+
+      // 进度条更新定时器
+      let progressTimer = null;
+
+      // ---------- 持久化 ----------
+      function savePreferences() {
+        try {
+          const prefs = {
+            speed: currentSpeed,
+            autoPlay: autoPlay,
+            favorites: Array.from(favorites),
+            // 不持久化 AB、循环状态等
+          };
+          localStorage.setItem('nihongo_player_prefs', JSON.stringify(prefs));
+        } catch (e) {}
       }
 
-      // 停止当前播放
-      function stopCurrent(clearLoopStates = false) {
-        if (currentAudio) {
-          currentAudio.pause();
-          currentAudio.currentTime = 0;
-          currentAudio = null;
-        }
-        // 恢复上一个播放按钮图标
-        if (currentLineIndex !== null) {
-          setPlayButtonIcon(currentLineIndex, PLAY_ICON);
-          const prevCard = document.querySelector(`.line-card[data-index='${currentLineIndex}']`);
-          if (prevCard) prevCard.classList.remove('playing');
-          currentLineIndex = null;
-        }
-      }
-
-      // 播放指定句子
-      function playLine(index, audioSrc, loop) {
-        stopCurrent();
-
-        const audio = new Audio(audioSrc);
-        audio.loop = loop;
-        audio.playbackRate = currentSpeed;   // 设置当前全局速度
-
-        audio.play().catch(err => {
-          console.warn('播放失败:', err);
-        });
-
-        currentAudio = audio;
-        currentLineIndex = index;
-
-        // 高亮卡片 + 切换图标
-        const card = document.querySelector(`.line-card[data-index='${index}']`);
-        if (card) card.classList.add('playing');
-        setPlayButtonIcon(index, PAUSE_ICON);
-
-        // 播放结束自动清理
-        audio.addEventListener('ended', () => {
-          if (!audio.loop) {
-            stopCurrent();
+      function loadPreferences() {
+        try {
+          const raw = localStorage.getItem('nihongo_player_prefs');
+          if (raw) {
+            const prefs = JSON.parse(raw);
+            if (prefs.speed && SPEEDS.includes(prefs.speed)) currentSpeed = prefs.speed;
+            if (typeof prefs.autoPlay === 'boolean') autoPlay = prefs.autoPlay;
+            if (Array.isArray(prefs.favorites)) favorites = new Set(prefs.favorites);
           }
-        });
+        } catch (e) {}
       }
 
-      // 切换循环状态
-      function toggleLoop(index, buttonElement) {
-        const isNowActive = !loopStates[index];
-        loopStates[index] = isNowActive;
-
-        if (isNowActive) {
-          buttonElement.classList.add('active');
-          buttonElement.querySelector('.loop-text').textContent = '循环中';
-        } else {
-          buttonElement.classList.remove('active');
-          buttonElement.querySelector('.loop-text').textContent = '循环';
-        }
-
-        if (currentLineIndex === index && currentAudio) {
-          currentAudio.loop = isNowActive;
-        }
-      }
-
-      // 播放按钮点击
-      function handlePlayClick(index, audioSrc) {
-        if (currentLineIndex === index && currentAudio && !currentAudio.paused) {
-          // 正在播放同一句 -> 暂停
-          stopCurrent();
-        } else {
-          stopCurrent();
-          const shouldLoop = loopStates[index] || false;
-          playLine(index, audioSrc, shouldLoop);
-        }
-      }
-
-      // 切换全局播放速度
-      function changeSpeed() {
-        // 计算下一个速度
-        const currentIdx = SPEEDS.indexOf(currentSpeed);
-        const nextIdx = (currentIdx + 1) % SPEEDS.length;
-        currentSpeed = SPEEDS[nextIdx];
-
-        // 更新所有速度按钮的文本
-        document.querySelectorAll('.speed-btn').forEach(btn => {
-          btn.textContent = currentSpeed + 'x';
-        });
-
-        // 如果当前有音频在播放，实时改变速率
-        if (currentAudio && !currentAudio.paused) {
-          currentAudio.playbackRate = currentSpeed;
-        }
-      }
-
-      // 将日文文本中的汉字（假名）转换为振假名ruby标签
-      function formatJapanese(text) {
-        // 安全转义（但我们需要保留插入的标签，所以先不对整体转义，信任数据）
-        // 只对括号外的普通文本进行基本转义？简化处理：因为数据可控，不做转义
-        // 匹配：一个或多个汉字 + 全角左括号 + 一个或多个假名（平/片） + 全角右括号
-        return text.replace(
-          /([\u4e00-\u9fff\u3400-\u4dbf]+)（([\u3040-\u309f\u30a0-\u30ff]+)）/g,
-          '<ruby>$1<rt>$2</rt></ruby>'
-        );
-      }
-
-      // 渲染台词
-      function renderLines(lines) {
-        if (!lines || lines.length === 0) {
-          container.innerHTML = '<div class="status-message">暂无台词数据</div>';
-          return;
-        }
-
-        let html = '';
-        lines.forEach((line, index) => {
-          if (!(index in loopStates)) {
-            loopStates[index] = false;
-          }
-
-          // 注意：romaji 和 chinese 仍然转义，japanese 使用 formatJapanese 处理
-          html += `
-            <div class="line-card" data-index="${index}">
-              <div class="romaji">${escapeHtml(line.romaji)}</div>
-              <div class="japanese">${formatJapanese(line.japanese)}</div>
-              <div class="chinese">${escapeHtml(line.chinese)}</div>
-              <div class="controls">
-                <button class="play-btn" data-action="play" data-index="${index}" data-audio="${escapeHtml(line.audio)}" aria-label="播放">
-                  ${PLAY_ICON}
-                </button>
-                <div class="right-controls">
-                  <button class="speed-btn" data-action="speed">${currentSpeed}x</button>
-                  <div class="loop-toggle" data-action="loop" data-index="${index}" role="button" tabindex="0">
-                    <span class="loop-icon">🔁</span>
-                    <span class="loop-text">循环</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          `;
-        });
-
-        container.innerHTML = html;
-
-        // 事件委托
-        container.addEventListener('click', (e) => {
-          const playBtn = e.target.closest('[data-action="play"]');
-          const loopBtn = e.target.closest('[data-action="loop"]');
-          const speedBtn = e.target.closest('[data-action="speed"]');
-
-          if (playBtn) {
-            const index = parseInt(playBtn.dataset.index);
-            const audioSrc = playBtn.dataset.audio;
-            handlePlayClick(index, audioSrc);
-          }
-
-          if (loopBtn) {
-            e.stopPropagation();
-            const index = parseInt(loopBtn.dataset.index);
-            toggleLoop(index, loopBtn);
-          }
-
-          if (speedBtn) {
-            e.stopPropagation();
-            changeSpeed();
-          }
-        });
-
-        // 键盘可访问性
-        container.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') {
-            const loopBtn = e.target.closest('[data-action="loop"]');
-            if (loopBtn) {
-              const index = parseInt(loopBtn.dataset.index);
-              toggleLoop(index, loopBtn);
-            }
-          }
-        });
-      }
-
-      // 转义HTML特殊字符（用于罗马音、中文翻译）
+      // ---------- 工具函数 ----------
       function escapeHtml(text) {
         return String(text)
           .replace(/&/g, '&amp;')
@@ -387,15 +464,526 @@
           .replace(/'/g, '&#039;');
       }
 
-      // 加载数据
+      // 将日文中的汉字（假名）转换为 ruby 标签
+      function formatJapanese(text) {
+        return text.replace(
+          /([\u4e00-\u9fff\u3400-\u4dbf]+)（([\u3040-\u309f\u30a0-\u30ff]+)）/g,
+          '<ruby>$1<rt>$2</rt></ruby>'
+        );
+      }
+
+      // 高亮搜索关键词
+      function highlightText(text, keyword) {
+        if (!keyword.trim()) return escapeHtml(text);
+        const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(${escaped})`, 'gi');
+        return escapeHtml(text).replace(regex, '<mark>$1</mark>');
+      }
+
+      // 显示 Toast
+      function showToast(msg) {
+        toast.textContent = msg;
+        toast.classList.add('show');
+        clearTimeout(toast._timeout);
+        toast._timeout = setTimeout(() => toast.classList.remove('show'), 1500);
+      }
+
+      // 根据 audioId 获取行数据
+      function getLineByAudioId(audioId) {
+        return allLines.find(l => l.audio === audioId);
+      }
+
+      // 在过滤后的数组中找到下一句的索引
+      function getNextIndex(currentAudioId) {
+        const idx = filteredLines.findIndex(l => l.audio === currentAudioId);
+        if (idx === -1 || idx >= filteredLines.length - 1) return -1;
+        return idx + 1;
+      }
+
+      function getPrevIndex(currentAudioId) {
+        const idx = filteredLines.findIndex(l => l.audio === currentAudioId);
+        if (idx <= 0) return -1;
+        return idx - 1;
+      }
+
+      // ---------- 进度条更新 ----------
+      function startProgressUpdater() {
+        stopProgressUpdater();
+        progressTimer = setInterval(() => {
+          if (currentAudio && !currentAudio.paused) {
+            const progress = (currentAudio.currentTime / currentAudio.duration) || 0;
+            // 更新对应卡片的进度条
+            const card = document.querySelector(`.line-card[data-audio-id="${currentAudioId}"]`);
+            if (card) {
+              const bar = card.querySelector('.progress-bar');
+              if (bar && !bar.matches(':active')) {  // 避免用户拖动时被覆盖
+                bar.value = progress * 100;
+              }
+            }
+          }
+        }, 200);
+      }
+
+      function stopProgressUpdater() {
+        if (progressTimer) {
+          clearInterval(progressTimer);
+          progressTimer = null;
+        }
+      }
+
+      // 重置所有进度条为0
+      function resetAllProgressBars() {
+        document.querySelectorAll('.progress-bar').forEach(bar => bar.value = 0);
+      }
+
+      // ---------- 播放控制 ----------
+      function stopCurrent(resetProgress = true) {
+        if (currentAudio) {
+          currentAudio.pause();
+          if (resetProgress) currentAudio.currentTime = 0;
+          currentAudio = null;
+        }
+        if (currentAudioId) {
+          updateCardPlayIcon(currentAudioId, '▶');
+          const card = document.querySelector(`.line-card[data-audio-id="${currentAudioId}"]`);
+          if (card) card.classList.remove('playing');
+          currentAudioId = null;
+        }
+        stopProgressUpdater();
+        updateGlobalNowPlaying('未播放');
+        playPauseBtn.textContent = '▶';
+        // 清除 AB 激活状态（但保留设置阶段）
+        clearABActive();
+      }
+
+      function playLine(audioSrc, loop) {
+        stopCurrent(true);
+
+        const audio = new Audio(audioSrc);
+        audio.loop = loop;
+        audio.playbackRate = currentSpeed;
+
+        audio.play().catch(err => console.warn('播放失败:', err));
+
+        currentAudio = audio;
+        currentAudioId = audioSrc;
+
+        // 更新 UI
+        const card = document.querySelector(`.line-card[data-audio-id="${audioSrc}"]`);
+        if (card) card.classList.add('playing');
+        updateCardPlayIcon(audioSrc, '⏸');
+        const line = getLineByAudioId(audioSrc);
+        if (line) {
+          updateGlobalNowPlaying(line.japanese || line.romaji);
+        }
+        playPauseBtn.textContent = '⏸';
+        startProgressUpdater();
+
+        // 结束处理
+        audio.addEventListener('ended', () => {
+          if (!audio.loop) {
+            if (abActive && currentAudioId === abAudioId) {
+              // AB 循环中，理论上不会自然结束，但如果 duration 等于 B 点，需跳回 A
+              // 这里用 timeupdate 处理更精确，结束时作为保险
+              if (pointA !== pointB) {
+                audio.currentTime = pointA;
+                audio.play();
+                return;
+              }
+            }
+            // 非循环，且非 AB 激活
+            const nextIdx = getNextIndex(audioSrc);
+            if (autoPlay && nextIdx !== -1) {
+              const nextLine = filteredLines[nextIdx];
+              const nextLoop = loopStates[nextLine.audio] || false;
+              playLine(nextLine.audio, nextLoop);
+            } else {
+              stopCurrent();
+            }
+          }
+        });
+
+        // AB 循环监听（如果当前音频已设置了 AB 循环）
+        if (abActive && currentAudioId === abAudioId) {
+          audio.addEventListener('timeupdate', abTimeUpdateHandler);
+        }
+      }
+
+      function togglePlayPause() {
+        if (currentAudio && !currentAudio.paused) {
+          currentAudio.pause();
+          playPauseBtn.textContent = '▶';
+          updateCardPlayIcon(currentAudioId, '▶');
+          stopProgressUpdater();
+        } else if (currentAudio && currentAudio.paused) {
+          currentAudio.play();
+          playPauseBtn.textContent = '⏸';
+          updateCardPlayIcon(currentAudioId, '⏸');
+          startProgressUpdater();
+        } else if (filteredLines.length > 0) {
+          // 没有播放，播放第一句
+          const first = filteredLines[0];
+          const loop = loopStates[first.audio] || false;
+          playLine(first.audio, loop);
+        }
+      }
+
+      function playNext() {
+        if (!currentAudioId) return;
+        const nextIdx = getNextIndex(currentAudioId);
+        if (nextIdx !== -1) {
+          const nextLine = filteredLines[nextIdx];
+          const loop = loopStates[nextLine.audio] || false;
+          playLine(nextLine.audio, loop);
+        }
+      }
+
+      function playPrev() {
+        if (!currentAudioId) return;
+        const prevIdx = getPrevIndex(currentAudioId);
+        if (prevIdx !== -1) {
+          const prevLine = filteredLines[prevIdx];
+          const loop = loopStates[prevLine.audio] || false;
+          playLine(prevLine.audio, loop);
+        }
+      }
+
+      // 更新卡片上的播放图标
+      function updateCardPlayIcon(audioId, icon) {
+        const card = document.querySelector(`.line-card[data-audio-id="${audioId}"]`);
+        if (card) {
+          const btn = card.querySelector('.play-btn');
+          if (btn) btn.textContent = icon;
+        }
+      }
+
+      function updateGlobalNowPlaying(text) {
+        nowPlayingText.textContent = text || '未播放';
+      }
+
+      // ---------- 循环切换 ----------
+      function toggleLoop(audioId, element) {
+        const isNowActive = !loopStates[audioId];
+        loopStates[audioId] = isNowActive;
+        if (element) {
+          if (isNowActive) {
+            element.classList.add('active');
+            element.querySelector('.loop-text').textContent = '循环中';
+          } else {
+            element.classList.remove('active');
+            element.querySelector('.loop-text').textContent = '循环';
+          }
+        }
+        if (currentAudioId === audioId && currentAudio) {
+          currentAudio.loop = isNowActive;
+        }
+      }
+
+      // ---------- 倍速 ----------
+      function changeSpeed() {
+        const currentIdx = SPEEDS.indexOf(currentSpeed);
+        const nextIdx = (currentIdx + 1) % SPEEDS.length;
+        currentSpeed = SPEEDS[nextIdx];
+        globalSpeedDisplay.textContent = currentSpeed + 'x';
+        document.querySelectorAll('.speed-btn').forEach(btn => btn.textContent = currentSpeed + 'x');
+        if (currentAudio && !currentAudio.paused) {
+          currentAudio.playbackRate = currentSpeed;
+        }
+        savePreferences();
+      }
+
+      // ---------- 收藏 ----------
+      function toggleFavorite(audioId, btnElement) {
+        if (favorites.has(audioId)) {
+          favorites.delete(audioId);
+          if (btnElement) btnElement.classList.remove('active');
+        } else {
+          favorites.add(audioId);
+          if (btnElement) btnElement.classList.add('active');
+        }
+        savePreferences();
+        // 如果当前是“仅收藏”过滤，刷新列表
+        if (filterFavBtn.classList.contains('active')) {
+          applyFilter();
+        }
+      }
+
+      // ---------- A-B 循环 ----------
+      function abTimeUpdateHandler() {
+        if (!currentAudio || currentAudioId !== abAudioId || !abActive) return;
+        if (currentAudio.currentTime >= pointB) {
+          currentAudio.currentTime = pointA;
+        }
+      }
+
+      function clearABActive() {
+        if (abActive && currentAudio) {
+          currentAudio.removeEventListener('timeupdate', abTimeUpdateHandler);
+        }
+        abActive = false;
+        abPhase = null;
+        abAudioId = null;
+        abBtn.classList.remove('active');
+        abBtn.textContent = 'A-B';
+      }
+
+      function enterABSetMode() {
+        if (!currentAudioId || !currentAudio) {
+          showToast('请先播放一句台词');
+          return;
+        }
+        // 如果已经激活 AB 循环，取消
+        if (abActive) {
+          clearABActive();
+          return;
+        }
+        // 进入设置 A 阶段
+        abPhase = 'setA';
+        abBtn.classList.add('active');
+        abBtn.textContent = '设置A点';
+        showToast('点击进度条设置 A 点');
+      }
+
+      function handleProgressBarClick(e, audioId) {
+        const bar = e.target;
+        const rect = bar.getBoundingClientRect();
+        const ratio = (e.clientX - rect.left) / rect.width;
+        const line = getLineByAudioId(audioId);
+        if (!line) return;
+
+        if (abPhase === 'setA' && currentAudioId === audioId) {
+          // 设置 A 点
+          pointA = (currentAudio.duration || 0) * ratio;
+          abPhase = 'setB';
+          abBtn.textContent = '设置B点';
+          showToast('点击进度条设置 B 点');
+          e.preventDefault();
+          return;
+        } else if (abPhase === 'setB' && currentAudioId === audioId) {
+          pointB = (currentAudio.duration || 0) * ratio;
+          if (pointB <= pointA) {
+            showToast('B 点必须大于 A 点');
+            return;
+          }
+          abPhase = null;
+          abActive = true;
+          abAudioId = audioId;
+          abBtn.textContent = 'AB中';
+          abBtn.classList.add('active');
+          // 开始循环
+          if (currentAudio) {
+            currentAudio.removeEventListener('timeupdate', abTimeUpdateHandler);
+            currentAudio.addEventListener('timeupdate', abTimeUpdateHandler);
+            currentAudio.currentTime = pointA;
+            currentAudio.play();
+          }
+          showToast('AB 循环已开始');
+          e.preventDefault();
+          return;
+        }
+
+        // 正常模式：跳转
+        if (currentAudioId === audioId && currentAudio) {
+          currentAudio.currentTime = (currentAudio.duration || 0) * ratio;
+          bar.value = ratio * 100;
+        }
+      }
+
+      // ---------- 长按复制 ----------
+      function setupLongPress(card, line) {
+        let timer;
+        const textToCopy = line.japanese.replace(/（.*?）/g, '') + '\n' + line.chinese; // 去掉括号假名
+        card.addEventListener('touchstart', (e) => {
+          timer = setTimeout(() => {
+            navigator.clipboard.writeText(textToCopy).then(() => {
+              showToast('已复制台词');
+            }).catch(() => showToast('复制失败'));
+          }, 500);
+        });
+        card.addEventListener('touchend', () => clearTimeout(timer));
+        card.addEventListener('touchmove', () => clearTimeout(timer));
+        // 桌面端右键也复制
+        card.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          navigator.clipboard.writeText(textToCopy).then(() => {
+            showToast('已复制台词');
+          }).catch(() => showToast('复制失败'));
+        });
+      }
+
+      // ---------- 渲染 ----------
+      function renderLines(lines) {
+        if (!lines || lines.length === 0) {
+          container.innerHTML = '<div class="no-result">没有匹配的台词</div>';
+          return;
+        }
+
+        const keyword = searchInput.value.trim();
+        let html = '';
+        lines.forEach(line => {
+          const audioId = line.audio;
+          const isLoop = loopStates[audioId] || false;
+          const isFav = favorites.has(audioId);
+
+          html += `
+            <div class="line-card" data-audio-id="${escapeHtml(audioId)}">
+              <div class="romaji">${highlightText(line.romaji, keyword)}</div>
+              <div class="japanese">${formatJapanese(highlightText(line.japanese, keyword))}</div>
+              <div class="chinese">${highlightText(line.chinese, keyword)}</div>
+              <input type="range" class="progress-bar" min="0" max="100" value="0" data-audio-id="${escapeHtml(audioId)}">
+              <div class="controls">
+                <div class="left-controls">
+                  <button class="play-btn" data-action="play" data-audio-id="${escapeHtml(audioId)}">▶</button>
+                  <button class="fav-btn ${isFav ? 'active' : ''}" data-action="fav" data-audio-id="${escapeHtml(audioId)}">${isFav ? '★' : '☆'}</button>
+                </div>
+                <div class="right-controls">
+                  <button class="speed-btn" data-action="speed">${currentSpeed}x</button>
+                  <div class="loop-toggle ${isLoop ? 'active' : ''}" data-action="loop" data-audio-id="${escapeHtml(audioId)}" role="button" tabindex="0">
+                    <span class="loop-icon">🔁</span>
+                    <span class="loop-text">${isLoop ? '循环中' : '循环'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+
+        container.innerHTML = html;
+
+        // 恢复当前播放高亮
+        if (currentAudioId) {
+          const card = container.querySelector(`.line-card[data-audio-id="${currentAudioId}"]`);
+          if (card) card.classList.add('playing');
+        }
+
+        // 绑定事件：卡片上的点击
+        container.addEventListener('click', (e) => {
+          const playBtn = e.target.closest('[data-action="play"]');
+          const loopBtn = e.target.closest('[data-action="loop"]');
+          const speedBtn = e.target.closest('[data-action="speed"]');
+          const favBtn = e.target.closest('[data-action="fav"]');
+          const progressBar = e.target.closest('.progress-bar');
+
+          if (playBtn) {
+            const audioId = playBtn.dataset.audioId;
+            if (currentAudioId === audioId && currentAudio && !currentAudio.paused) {
+              // 暂停
+              currentAudio.pause();
+              playPauseBtn.textContent = '▶';
+              updateCardPlayIcon(audioId, '▶');
+              stopProgressUpdater();
+            } else {
+              const loop = loopStates[audioId] || false;
+              playLine(audioId, loop);
+            }
+          }
+
+          if (loopBtn) {
+            e.stopPropagation();
+            const audioId = loopBtn.dataset.audioId;
+            toggleLoop(audioId, loopBtn);
+          }
+
+          if (speedBtn) {
+            e.stopPropagation();
+            changeSpeed();
+          }
+
+          if (favBtn) {
+            e.stopPropagation();
+            const audioId = favBtn.dataset.audioId;
+            toggleFavorite(audioId, favBtn);
+          }
+
+          if (progressBar) {
+            const audioId = progressBar.dataset.audioId;
+            handleProgressBarClick(e, audioId);
+          }
+        });
+
+        // 长按复制
+        container.querySelectorAll('.line-card').forEach(card => {
+          const audioId = card.dataset.audioId;
+          const line = lines.find(l => l.audio === audioId);
+          if (line) setupLongPress(card, line);
+        });
+      }
+
+      // 过滤并重新渲染
+      function applyFilter() {
+        const keyword = searchInput.value.trim().toLowerCase();
+        const onlyFav = filterFavBtn.classList.contains('active');
+
+        filteredLines = allLines.filter(line => {
+          if (onlyFav && !favorites.has(line.audio)) return false;
+          if (!keyword) return true;
+          return (
+            line.romaji.toLowerCase().includes(keyword) ||
+            line.japanese.includes(keyword) ||  // 日文保留原文搜索
+            line.chinese.includes(keyword)
+          );
+        });
+
+        // 保持当前播放的句子可见？如果被过滤掉，停止播放
+        if (currentAudioId && !filteredLines.some(l => l.audio === currentAudioId)) {
+          stopCurrent();
+        }
+
+        renderLines(filteredLines);
+      }
+
+      // ---------- 全局按钮绑定 ----------
+      playPauseBtn.addEventListener('click', togglePlayPause);
+      prevBtn.addEventListener('click', playPrev);
+      nextBtn.addEventListener('click', playNext);
+      autoPlayBtn.addEventListener('click', () => {
+        autoPlay = !autoPlay;
+        if (autoPlay) {
+          autoPlayBtn.classList.add('active');
+          autoPlayBtn.textContent = '自动✓';
+        } else {
+          autoPlayBtn.classList.remove('active');
+          autoPlayBtn.textContent = '自动';
+        }
+        savePreferences();
+      });
+      abBtn.addEventListener('click', enterABSetMode);
+      globalSpeedDisplay.addEventListener('click', changeSpeed);  // 也可点击切换
+
+      searchInput.addEventListener('input', applyFilter);
+      filterFavBtn.addEventListener('click', () => {
+        filterFavBtn.classList.toggle('active');
+        applyFilter();
+      });
+
+      // ---------- 初始化加载 ----------
+      loadPreferences();
+
+      // 应用持久化的UI状态
+      if (autoPlay) {
+        autoPlayBtn.classList.add('active');
+        autoPlayBtn.textContent = '自动✓';
+      }
+      globalSpeedDisplay.textContent = currentSpeed + 'x';
+
       fetch('data.json')
-        .then(response => {
-          if (!response.ok) throw new Error('加载失败');
-          return response.json();
+        .then(res => {
+          if (!res.ok) throw new Error('加载失败');
+          return res.json();
         })
-        .then(data => renderLines(data))
+        .then(data => {
+          if (!Array.isArray(data)) throw new Error('数据格式错误');
+          allLines = data;
+          // 初始化 loopStates（如果之前已有本地缓存则不覆盖）
+          allLines.forEach(line => {
+            if (!(line.audio in loopStates)) {
+              loopStates[line.audio] = false;
+            }
+          });
+          applyFilter();  // 首次渲染
+        })
         .catch(err => {
-          container.innerHTML = '<div class="status-message">❌ 台词数据加载失败，请检查 data.json 是否存在。</div>';
+          container.innerHTML = '<div class="no-result">❌ 数据加载失败，请检查 data.json</div>';
           console.error(err);
         });
     })();
