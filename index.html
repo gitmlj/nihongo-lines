@@ -56,7 +56,17 @@
       font-size: 1.4rem;
       font-weight: 500;
       margin-bottom: 4px;
-      line-height: 1.5;
+      line-height: 1.8;      /* 增加行高给注音留空间 */
+    }
+
+    /* 振假名（ruby）样式 */
+    .japanese ruby {
+      ruby-align: center;
+    }
+    .japanese rt {
+      font-size: 0.55em;    /* 假名小一些 */
+      color: #7a6e64;
+      user-select: none;
     }
 
     .chinese {
@@ -74,6 +84,12 @@
       padding-top: 12px;
     }
 
+    .right-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
     .play-btn {
       background: none;
       border: none;
@@ -83,6 +99,8 @@
       line-height: 1;
       color: #b08968;
       transition: transform 0.1s;
+      min-width: 48px;         /* 防止切换图标时宽度变化 */
+      text-align: center;
     }
 
     .play-btn:active {
@@ -115,6 +133,27 @@
       font-size: 1.2rem;
     }
 
+    .speed-btn {
+      background: none;
+      border: 1px solid transparent;
+      font-size: 0.85rem;
+      color: #999;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 20px;
+      transition: all 0.2s;
+      line-height: 1;
+    }
+
+    .speed-btn:hover {
+      border-color: #ccc;
+      background: #f5f5f5;
+    }
+
+    .speed-btn:active {
+      transform: scale(0.95);
+    }
+
     /* 播放中卡片微微高亮 */
     .line-card.playing {
       box-shadow: 0 0 0 2px #d9b99b;
@@ -140,32 +179,51 @@
     (function() {
       const container = document.getElementById('lines-container');
 
-      // 全局状态
-      let currentAudio = null;          // 当前正在播放的 Audio 实例
-      let currentLineIndex = null;      // 正在播放的台词索引（用于高亮）
-      const loopStates = {};            // 存储每句的循环开关状态 { index: true/false }
+      // 播放状态
+      let currentAudio = null;
+      let currentLineIndex = null;
+      const loopStates = {};
 
-      // 停止当前播放并清理
-      function stopCurrent() {
+      // 速度控制（全局）
+      const SPEEDS = [1, 1.25, 1.5, 2, 0.75];
+      let currentSpeed = 1;   // 默认1倍
+
+      // 播放/暂停图标
+      const PLAY_ICON = '▶';
+      const PAUSE_ICON = '⏸';
+
+      // 更新指定卡片的播放按钮图标
+      function setPlayButtonIcon(index, icon) {
+        const card = document.querySelector(`.line-card[data-index='${index}']`);
+        if (card) {
+          const btn = card.querySelector('.play-btn');
+          if (btn) btn.textContent = icon;
+        }
+      }
+
+      // 停止当前播放
+      function stopCurrent(clearLoopStates = false) {
         if (currentAudio) {
           currentAudio.pause();
           currentAudio.currentTime = 0;
           currentAudio = null;
         }
-        // 移除高亮
+        // 恢复上一个播放按钮图标
         if (currentLineIndex !== null) {
+          setPlayButtonIcon(currentLineIndex, PLAY_ICON);
           const prevCard = document.querySelector(`.line-card[data-index='${currentLineIndex}']`);
           if (prevCard) prevCard.classList.remove('playing');
           currentLineIndex = null;
         }
       }
 
-      // 播放指定索引的音频
+      // 播放指定句子
       function playLine(index, audioSrc, loop) {
         stopCurrent();
 
         const audio = new Audio(audioSrc);
         audio.loop = loop;
+        audio.playbackRate = currentSpeed;   // 设置当前全局速度
 
         audio.play().catch(err => {
           console.warn('播放失败:', err);
@@ -174,27 +232,24 @@
         currentAudio = audio;
         currentLineIndex = index;
 
-        // 高亮当前卡片
+        // 高亮卡片 + 切换图标
         const card = document.querySelector(`.line-card[data-index='${index}']`);
         if (card) card.classList.add('playing');
+        setPlayButtonIcon(index, PAUSE_ICON);
 
-        // 播放结束清理状态（非循环时）
+        // 播放结束自动清理
         audio.addEventListener('ended', () => {
           if (!audio.loop) {
             stopCurrent();
           }
         });
-
-        // 如果用户再次点击同一句（且非循环），根据需求可以重新播放或停止
-        // 这里设计：如果音频正在播放且不是循环，再次点击就停止；否则重新播放（通过外部控制）
       }
 
       // 切换循环状态
-      function toggleLoop(index, buttonElement, audioSrc) {
+      function toggleLoop(index, buttonElement) {
         const isNowActive = !loopStates[index];
         loopStates[index] = isNowActive;
 
-        // 更新按钮样式
         if (isNowActive) {
           buttonElement.classList.add('active');
           buttonElement.querySelector('.loop-text').textContent = '循环中';
@@ -203,38 +258,53 @@
           buttonElement.querySelector('.loop-text').textContent = '循环';
         }
 
-        // 如果当前正在播放这一句，立即更新 Audio 的 loop 属性
         if (currentLineIndex === index && currentAudio) {
           currentAudio.loop = isNowActive;
         }
-        // 如果开启了循环且当前没有播放，不做额外操作
-        // 如果关闭了循环且正在播放，音频会在结束后自然停止
       }
 
-      // 处理台词卡片的点击（播放按钮或整个卡片？这里用播放按钮明确触发）
+      // 播放按钮点击
       function handlePlayClick(index, audioSrc) {
-        // 如果正在播放同一句
         if (currentLineIndex === index && currentAudio && !currentAudio.paused) {
-          // 如果当前是循环模式，再次点击就停止（方便退出循环）
-          if (currentAudio.loop) {
-            stopCurrent();
-            // 同时可选关闭循环（也可以保留，这里设计点击停止循环）
-            // 但保留用户手动设置的循环状态，只是停止播放。下次点击又会以循环模式播放。
-          } else {
-            // 非循环模式，再次点击就重新从头播放
-            stopCurrent();
-            const shouldLoop = loopStates[index] || false;
-            playLine(index, audioSrc, shouldLoop);
-          }
+          // 正在播放同一句 -> 暂停
+          stopCurrent();
         } else {
-          // 不同句，或当前没有播放
           stopCurrent();
           const shouldLoop = loopStates[index] || false;
           playLine(index, audioSrc, shouldLoop);
         }
       }
 
-      // 渲染所有台词
+      // 切换全局播放速度
+      function changeSpeed() {
+        // 计算下一个速度
+        const currentIdx = SPEEDS.indexOf(currentSpeed);
+        const nextIdx = (currentIdx + 1) % SPEEDS.length;
+        currentSpeed = SPEEDS[nextIdx];
+
+        // 更新所有速度按钮的文本
+        document.querySelectorAll('.speed-btn').forEach(btn => {
+          btn.textContent = currentSpeed + 'x';
+        });
+
+        // 如果当前有音频在播放，实时改变速率
+        if (currentAudio && !currentAudio.paused) {
+          currentAudio.playbackRate = currentSpeed;
+        }
+      }
+
+      // 将日文文本中的汉字（假名）转换为振假名ruby标签
+      function formatJapanese(text) {
+        // 安全转义（但我们需要保留插入的标签，所以先不对整体转义，信任数据）
+        // 只对括号外的普通文本进行基本转义？简化处理：因为数据可控，不做转义
+        // 匹配：一个或多个汉字 + 全角左括号 + 一个或多个假名（平/片） + 全角右括号
+        return text.replace(
+          /([\u4e00-\u9fff\u3400-\u4dbf]+)（([\u3040-\u309f\u30a0-\u30ff]+)）/g,
+          '<ruby>$1<rt>$2</rt></ruby>'
+        );
+      }
+
+      // 渲染台词
       function renderLines(lines) {
         if (!lines || lines.length === 0) {
           container.innerHTML = '<div class="status-message">暂无台词数据</div>';
@@ -243,23 +313,26 @@
 
         let html = '';
         lines.forEach((line, index) => {
-          // 初始化循环状态
           if (!(index in loopStates)) {
             loopStates[index] = false;
           }
 
+          // 注意：romaji 和 chinese 仍然转义，japanese 使用 formatJapanese 处理
           html += `
             <div class="line-card" data-index="${index}">
               <div class="romaji">${escapeHtml(line.romaji)}</div>
-              <div class="japanese">${escapeHtml(line.japanese)}</div>
+              <div class="japanese">${formatJapanese(line.japanese)}</div>
               <div class="chinese">${escapeHtml(line.chinese)}</div>
               <div class="controls">
                 <button class="play-btn" data-action="play" data-index="${index}" data-audio="${escapeHtml(line.audio)}" aria-label="播放">
-                  ▶
+                  ${PLAY_ICON}
                 </button>
-                <div class="loop-toggle" data-action="loop" data-index="${index}" data-audio="${escapeHtml(line.audio)}" role="button" tabindex="0">
-                  <span class="loop-icon">🔁</span>
-                  <span class="loop-text">循环</span>
+                <div class="right-controls">
+                  <button class="speed-btn" data-action="speed">${currentSpeed}x</button>
+                  <div class="loop-toggle" data-action="loop" data-index="${index}" role="button" tabindex="0">
+                    <span class="loop-icon">🔁</span>
+                    <span class="loop-text">循环</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -268,10 +341,11 @@
 
         container.innerHTML = html;
 
-        // 绑定事件
+        // 事件委托
         container.addEventListener('click', (e) => {
           const playBtn = e.target.closest('[data-action="play"]');
           const loopBtn = e.target.closest('[data-action="loop"]');
+          const speedBtn = e.target.closest('[data-action="speed"]');
 
           if (playBtn) {
             const index = parseInt(playBtn.dataset.index);
@@ -280,27 +354,30 @@
           }
 
           if (loopBtn) {
-            e.stopPropagation(); // 防止点到卡片其他区域误触
+            e.stopPropagation();
             const index = parseInt(loopBtn.dataset.index);
-            const audioSrc = loopBtn.dataset.audio;
-            toggleLoop(index, loopBtn, audioSrc);
+            toggleLoop(index, loopBtn);
+          }
+
+          if (speedBtn) {
+            e.stopPropagation();
+            changeSpeed();
           }
         });
 
-        // 键盘可访问性（Enter 触发）
+        // 键盘可访问性
         container.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') {
             const loopBtn = e.target.closest('[data-action="loop"]');
             if (loopBtn) {
               const index = parseInt(loopBtn.dataset.index);
-              const audioSrc = loopBtn.dataset.audio;
-              toggleLoop(index, loopBtn, audioSrc);
+              toggleLoop(index, loopBtn);
             }
           }
         });
       }
 
-      // 简单的转义，防止XSS
+      // 转义HTML特殊字符（用于罗马音、中文翻译）
       function escapeHtml(text) {
         return String(text)
           .replace(/&/g, '&amp;')
@@ -310,15 +387,13 @@
           .replace(/'/g, '&#039;');
       }
 
-      // 加载 data.json
+      // 加载数据
       fetch('data.json')
         .then(response => {
           if (!response.ok) throw new Error('加载失败');
           return response.json();
         })
-        .then(data => {
-          renderLines(data);
-        })
+        .then(data => renderLines(data))
         .catch(err => {
           container.innerHTML = '<div class="status-message">❌ 台词数据加载失败，请检查 data.json 是否存在。</div>';
           console.error(err);
