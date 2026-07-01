@@ -16,10 +16,9 @@
       background: #f5f0eb;
       color: #2e2e2e;
       height: 100vh;
-      overflow: hidden;          /* 禁止 body 滚动，让内部容器滚动 */
+      overflow: hidden;
     }
 
-    /* ---------- 顶部固定区 ---------- */
     .header {
       position: fixed;
       top: 0;
@@ -39,7 +38,6 @@
       color: #4a3f35;
     }
 
-    /* 搜索区域 */
     .search-bar {
       display: flex;
       gap: 10px;
@@ -78,11 +76,10 @@
     }
     .filter-fav .star-icon { font-size: 1.2rem; }
 
-    /* ---------- 中间可滚动台词区 ---------- */
     .scroll-container {
       position: fixed;
-      top: 70px;                /* 根据 header 实际高度调整（标题+搜索栏约130px） */
-      bottom: 60px;              /* 底部控制栏高度约60px */
+      top: 70px;
+      bottom: 60px;
       left: 0;
       right: 0;
       overflow-y: auto;
@@ -90,7 +87,6 @@
       -webkit-overflow-scrolling: touch;
     }
 
-    /* 台词卡片 */
     .line-card {
       background: white;
       border-radius: 18px;
@@ -120,14 +116,12 @@
       color: #7a6e64;
       user-select: none;
     }
-
     .chinese {
       font-size: 0.9rem;
       color: #2aa198;
       margin-bottom: 8px;
     }
 
-    /* 进度条 */
     .progress-bar {
       width: 100%;
       height: 4px;
@@ -230,7 +224,6 @@
       box-shadow: 0 0 0 2px #d9b99b;
     }
 
-    /* 倍数菜单 - 向上弹出 */
     .speed-menu {
       position: fixed;
       background: white;
@@ -336,13 +329,11 @@
     }
     .toast.show { opacity: 1; }
 
-    /* 搜索高亮 */
     mark {
       background: #ffeb99;
       padding: 0 2px;
       border-radius: 2px;
     }
-
     .no-result {
       text-align: center;
       padding: 40px;
@@ -351,24 +342,22 @@
   </style>
 </head>
 <body>
-  <!-- 顶部固定区 -->
+  <!-- 隐藏的持久音频元素，用于锁屏后播放 -->
+  <audio id="bgAudio" playsinline webkit-playsinline preload="auto"></audio>
+
   <div class="header">
-    <!-- <h1>📺 台词练习</h1> -->
     <div class="search-bar">
       <input type="text" class="search-input" id="searchInput" placeholder="搜索罗马音 / 日文 / 中文...">
       <div class="filter-fav" id="filterFavBtn">
-        <!-- <span class="star-icon">⭐</span> 仅收藏 -->
-        <span class="star-icon">⭐</span> 
+        <span class="star-icon">⭐</span>
       </div>
     </div>
   </div>
 
-  <!-- 可滚动台词区域 -->
   <div class="scroll-container" id="scrollContainer">
-    <div id="lines-container"><!-- 动态生成 --></div>
+    <div id="lines-container"></div>
   </div>
 
-  <!-- 全局底部控制栏 -->
   <div class="global-controls" id="globalControls">
     <div class="global-info">
       <span class="now-playing" id="nowPlayingText">未播放</span>
@@ -395,7 +384,6 @@
 
   <script>
     (function() {
-      // ---------- DOM 元素 ----------
       const container = document.getElementById('lines-container');
       const scrollContainer = document.getElementById('scrollContainer');
       const searchInput = document.getElementById('searchInput');
@@ -409,13 +397,10 @@
       const abBtn = document.getElementById('abBtn');
       const speedMenu = document.getElementById('speedMenu');
       const toast = document.getElementById('toast');
+      const bgAudio = document.getElementById('bgAudio');  // 持久音频
 
-      // ---------- 数据 ----------
       let allLines = [];
       let filteredLines = [];
-
-      // ---------- 播放状态 ----------
-      let currentAudio = null;
       let currentAudioId = null;
       const loopStates = {};
       let currentSpeed = 1;
@@ -425,7 +410,6 @@
       let abActive = false, abPhase = null, pointA = 0, pointB = 0, abAudioId = null;
       let progressTimer = null;
 
-      // ---------- 持久化 ----------
       function savePreferences() {
         try {
           localStorage.setItem('nihongo_player_prefs', JSON.stringify({
@@ -445,7 +429,6 @@
         } catch (e) {}
       }
 
-      // ---------- 工具 ----------
       function escapeHtml(text) {
         return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
       }
@@ -466,11 +449,15 @@
       function getLineByAudioId(id) { return allLines.find(l => l.audio === id); }
       function getNextIndex(id) {
         const idx = filteredLines.findIndex(l => l.audio === id);
-        return (idx !== -1 && idx < filteredLines.length - 1) ? idx + 1 : -1;
+        if (idx === -1) return -1;
+        // 如果是最后一句，返回0（实现列表循环）
+        return idx < filteredLines.length - 1 ? idx + 1 : 0;
       }
       function getPrevIndex(id) {
         const idx = filteredLines.findIndex(l => l.audio === id);
-        return idx > 0 ? idx - 1 : -1;
+        if (idx === -1) return -1;
+        // 如果是第一句，返回最后一句
+        return idx > 0 ? idx - 1 : filteredLines.length - 1;
       }
 
       function updateAllSpeedDisplay() {
@@ -487,62 +474,41 @@
         if (speed === currentSpeed) return;
         currentSpeed = speed;
         updateAllSpeedDisplay();
-        if (currentAudio && !currentAudio.paused) {
-          currentAudio.playbackRate = currentSpeed;
+        if (bgAudio && !bgAudio.paused) {
+          bgAudio.playbackRate = currentSpeed;
         }
         savePreferences();
       }
 
-      // 处理滚动关闭弹窗
       function handleScrollClose() {
-        if (speedMenu.classList.contains('open')) {
-          closeSpeedMenu();
-        }
+        if (speedMenu.classList.contains('open')) closeSpeedMenu();
       }
-
       function openSpeedMenu(triggerBtn) {
         const rect = triggerBtn.getBoundingClientRect();
-
-        // 1. 先让菜单以不可见方式渲染，获取真实高度
         speedMenu.style.cssText = 'display:block; position:fixed; left:-9999px; top:-9999px;';
         const menuHeight = speedMenu.offsetHeight;
         const menuWidth = speedMenu.offsetWidth;
-        // 清除临时样式，准备正式显示
         speedMenu.style.cssText = '';
-
-        // 2. 计算位置：默认向上弹出（按钮上方4px）
         let top = rect.top - menuHeight - 4;
         let left = rect.left;
-
-        // 3. 如果上方空间不足，改为向下弹出
-        if (top < 10) {
-          top = rect.bottom + 4;
-        }
-        // 4. 右侧溢出处理
-        if (left + menuWidth > window.innerWidth) {
-          left = window.innerWidth - menuWidth - 10;
-        }
-
+        if (top < 10) top = rect.bottom + 4;
+        if (left + menuWidth > window.innerWidth) left = window.innerWidth - menuWidth - 10;
         speedMenu.style.top = top + 'px';
         speedMenu.style.left = left + 'px';
         speedMenu.classList.add('open');
         updateAllSpeedDisplay();
-
-        // 绑定滚动关闭
         scrollContainer.addEventListener('scroll', handleScrollClose, { passive: true });
       }
-
       function closeSpeedMenu() {
         speedMenu.classList.remove('open');
-        // 移除滚动监听
         scrollContainer.removeEventListener('scroll', handleScrollClose);
       }
 
       function startProgressUpdater() {
         stopProgressUpdater();
         progressTimer = setInterval(() => {
-          if (currentAudio && !currentAudio.paused && currentAudio.duration) {
-            const pct = (currentAudio.currentTime / currentAudio.duration) * 100;
+          if (bgAudio && !bgAudio.paused && bgAudio.duration) {
+            const pct = (bgAudio.currentTime / bgAudio.duration) * 100;
             const card = document.querySelector(`.line-card[data-audio-id="${currentAudioId}"]`);
             if (card) {
               const bar = card.querySelector('.progress-bar');
@@ -556,10 +522,9 @@
       }
 
       function stopCurrent(resetProgress = true) {
-        if (currentAudio) {
-          currentAudio.pause();
-          if (resetProgress) currentAudio.currentTime = 0;
-          currentAudio = null;
+        if (bgAudio) {
+          bgAudio.pause();
+          if (resetProgress) bgAudio.currentTime = 0;
         }
         if (currentAudioId) {
           updateCardPlayIcon(currentAudioId, '▶');
@@ -572,31 +537,53 @@
         playPauseBtn.textContent = '▶';
         clearABActive();
       }
+
+      function setupMediaSession(line) {
+        if ('mediaSession' in navigator) {
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: line.chinese || line.japanese,
+            artist: '台词播放器',
+            album: '',
+            artwork: []
+          });
+          navigator.mediaSession.setActionHandler('play', () => {
+            if (bgAudio.paused) bgAudio.play();
+          });
+          navigator.mediaSession.setActionHandler('pause', () => {
+            bgAudio.pause();
+          });
+          navigator.mediaSession.setActionHandler('previoustrack', playPrev);
+          navigator.mediaSession.setActionHandler('nexttrack', playNext);
+        }
+      }
+
       function playLine(audioSrc, loop) {
-        stopCurrent(true);
-        const audio = new Audio(audioSrc);
-        audio.loop = loop;
-        audio.playbackRate = currentSpeed;
-        audio.play().catch(err => console.warn('播放失败:', err));
-        currentAudio = audio;
+        stopCurrent(false);
+
+        bgAudio.src = audioSrc;
+        bgAudio.loop = loop;
+        bgAudio.playbackRate = currentSpeed;
+        bgAudio.play().catch(err => console.warn('播放失败:', err));
+
         currentAudioId = audioSrc;
         const card = document.querySelector(`.line-card[data-audio-id="${audioSrc}"]`);
         if (card) {
           card.classList.add('playing');
-          // 滚动到当前卡片中央
           card.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
         updateCardPlayIcon(audioSrc, '⏸');
         const line = getLineByAudioId(audioSrc);
         updateGlobalNowPlaying(line ? (line.japanese || line.romaji) : '');
         playPauseBtn.textContent = '⏸';
+        if (line) setupMediaSession(line);
         startProgressUpdater();
 
-        audio.addEventListener('ended', () => {
-          if (!audio.loop) {
+        // 清除之前的 ended 监听（通过替换 onended）
+        bgAudio.onended = () => {
+          if (!bgAudio.loop) {
             if (abActive && currentAudioId === abAudioId && pointA !== pointB) {
-              audio.currentTime = pointA;
-              audio.play();
+              bgAudio.currentTime = pointA;
+              bgAudio.play();
               return;
             }
             const nextIdx = getNextIndex(audioSrc);
@@ -607,19 +594,23 @@
               stopCurrent();
             }
           }
-        });
+        };
+
         if (abActive && currentAudioId === abAudioId) {
-          audio.addEventListener('timeupdate', abTimeUpdateHandler);
+          bgAudio.ontimeupdate = abTimeUpdateHandler;
+        } else {
+          bgAudio.ontimeupdate = null;
         }
       }
+
       function togglePlayPause() {
-        if (currentAudio && !currentAudio.paused) {
-          currentAudio.pause();
+        if (bgAudio && !bgAudio.paused) {
+          bgAudio.pause();
           playPauseBtn.textContent = '▶';
           updateCardPlayIcon(currentAudioId, '▶');
           stopProgressUpdater();
-        } else if (currentAudio && currentAudio.paused) {
-          currentAudio.play();
+        } else if (bgAudio && bgAudio.paused) {
+          bgAudio.play();
           playPauseBtn.textContent = '⏸';
           updateCardPlayIcon(currentAudioId, '⏸');
           startProgressUpdater();
@@ -656,7 +647,7 @@
           el.classList.toggle('active', active);
           el.querySelector('.loop-text').textContent = active ? '循环中' : '循环';
         }
-        if (currentAudioId === audioId && currentAudio) currentAudio.loop = active;
+        if (currentAudioId === audioId) bgAudio.loop = active;
       }
 
       function toggleFavorite(audioId, el) {
@@ -672,16 +663,18 @@
       }
 
       function abTimeUpdateHandler() {
-        if (!currentAudio || currentAudioId !== abAudioId || !abActive) return;
-        if (currentAudio.currentTime >= pointB) currentAudio.currentTime = pointA;
+        if (!bgAudio || currentAudioId !== abAudioId || !abActive) return;
+        if (bgAudio.currentTime >= pointB) bgAudio.currentTime = pointA;
       }
       function clearABActive() {
-        if (abActive && currentAudio) currentAudio.removeEventListener('timeupdate', abTimeUpdateHandler);
+        if (abActive) {
+          bgAudio.ontimeupdate = null;
+        }
         abActive = false; abPhase = null; abAudioId = null;
         abBtn.classList.remove('active'); abBtn.textContent = 'A-B';
       }
       function enterABSetMode() {
-        if (!currentAudioId || !currentAudio) { showToast('请先播放一句台词'); return; }
+        if (!currentAudioId || !bgAudio || bgAudio.paused) { showToast('请先播放一句台词'); return; }
         if (abActive) { clearABActive(); return; }
         abPhase = 'setA';
         abBtn.classList.add('active'); abBtn.textContent = '设置A点';
@@ -692,25 +685,22 @@
         const rect = bar.getBoundingClientRect();
         const ratio = (e.clientX - rect.left) / rect.width;
         if (abPhase === 'setA' && currentAudioId === audioId) {
-          pointA = (currentAudio.duration || 0) * ratio;
+          pointA = (bgAudio.duration || 0) * ratio;
           abPhase = 'setB'; abBtn.textContent = '设置B点';
           showToast('点击进度条设置 B 点');
           e.preventDefault();
         } else if (abPhase === 'setB' && currentAudioId === audioId) {
-          pointB = (currentAudio.duration || 0) * ratio;
+          pointB = (bgAudio.duration || 0) * ratio;
           if (pointB <= pointA) { showToast('B 点必须大于 A 点'); return; }
           abPhase = null; abActive = true; abAudioId = audioId;
           abBtn.textContent = 'AB中'; abBtn.classList.add('active');
-          if (currentAudio) {
-            currentAudio.removeEventListener('timeupdate', abTimeUpdateHandler);
-            currentAudio.addEventListener('timeupdate', abTimeUpdateHandler);
-            currentAudio.currentTime = pointA;
-            currentAudio.play();
-          }
+          bgAudio.ontimeupdate = abTimeUpdateHandler;
+          bgAudio.currentTime = pointA;
+          bgAudio.play();
           showToast('AB 循环已开始');
           e.preventDefault();
-        } else if (currentAudioId === audioId && currentAudio) {
-          currentAudio.currentTime = (currentAudio.duration || 0) * ratio;
+        } else if (currentAudioId === audioId) {
+          bgAudio.currentTime = (bgAudio.duration || 0) * ratio;
           bar.value = ratio * 100;
         }
       }
@@ -778,7 +768,7 @@
 
           if (playBtn) {
             const id = playBtn.dataset.audioId;
-            if (currentAudioId === id && currentAudio && !currentAudio.paused) stopCurrent();
+            if (currentAudioId === id && bgAudio && !bgAudio.paused) stopCurrent();
             else playLine(id, loopStates[id] || false);
           }
           if (loopBtn) {
@@ -818,6 +808,13 @@
         renderLines(filteredLines);
       }
 
+      // 后台播放恢复
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && bgAudio && bgAudio.paused && currentAudioId) {
+          bgAudio.play().catch(() => {});
+        }
+      });
+
       playPauseBtn.addEventListener('click', togglePlayPause);
       prevBtn.addEventListener('click', playPrev);
       nextBtn.addEventListener('click', playNext);
@@ -844,7 +841,6 @@
         setSpeed(parseFloat(li.dataset.speed));
         closeSpeedMenu();
       });
-      // 点击外部关闭
       document.addEventListener('click', (e) => {
         if (!e.target.closest('.speed-trigger') && !e.target.closest('#speedMenu')) {
           closeSpeedMenu();
