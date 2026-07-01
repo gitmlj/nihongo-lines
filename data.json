@@ -1,21 +1,98 @@
-
 [
   {
-    "romaji": "Chikyū-jō no dareka ga futo omotta.",
-    "japanese": "地球上（ちきゅうじょう）の誰（だれ）かが ふと 思（おも）った",
-    "chinese": "地球上的某个人忽然有了这样一种想法",
+    "romaji": "Chigau kore wa terepashī de wa nai",
+    "japanese": "違（ちが）う これはテレパシーではない",
+    "chinese": "不 这不是心电感应",
     "audio": "audio/line001.mp3"
   },
   {
-    "romaji": "Zannen da… Shippai shita…",
-    "japanese": "残念（ざんねん）だ… 失敗（しっぱい）した…",
-    "chinese": "遗憾…失败了…",
+    "romaji": "Demo kore de nan kai me da",
+    "japanese": "でも これで何回目（なんかいめ）だ",
+    "chinese": "但这已经是第几次了",
     "audio": "audio/line002.mp3"
   },
   {
-    "romaji": "Zannen da…",
-    "japanese": "残念（ざんねん）だ…",
-    "chinese": "真遗憾…",
+    "romaji": "Yume de au no wa jūroku kai me da yo",
+    "japanese": "夢（ゆめ）で会（あ）うのは16回目（じゅうろくかいめ）だよ",
+    "chinese": "我们在梦里相见已经是第16次了",
     "audio": "audio/line003.mp3"
+  },
+  {
+    "romaji": "Dōse kimi wa wasureru darō ga ne",
+    "japanese": "どうせ君（きみ）は忘（わす）れるだろうがね",
+    "chinese": "反正你还是会忘记的吧",
+    "audio": "audio/line004.mp3"
+  },
+  {
+    "romaji": "Shikashi genjitsu sekai no Migī to wa nite mo nitsukanu sugata da na",
+    "japanese": "しかし 現実世界（げんじつせかい）のミギーとは似（に）ても似（に）つかない姿（すがた）だな",
+    "chinese": "可是你跟现实世界中的米奇长得一点都不像",
+    "audio": "audio/line005.mp3"
+  },
+  {
+    "romaji": "Kimi wa maikai onaji koto o iu",
+    "japanese": "君（きみ）は毎回（まいかい）同（おな）じことを言（い）う",
+    "chinese": "你每次都会说同样的话",
+    "audio": "audio/line006.mp3"
+  },
+  {
+    "romaji": "Watashi datte kimi ga genjitsu sekai no Shin'ichi no katachi ni wa mienai zo",
+    "japanese": "私（わたし）だって君（きみ）が現実世界（げんじつせかい）のシンイチの形（かたち）には見（み）えないぞ",
+    "chinese": "在我看来你和现实世界的新一长得也不一样",
+    "audio": "audio/line007.mp3"
+  },
+  {
+    "romaji": "Nanda mō iku no ka",
+    "japanese": "なんだ もう行（い）くのか",
+    "chinese": "怎么了 你这就要走了吗",
+    "audio": "audio/line008.mp3"
+  },
+  {
+    "romaji": "Kimi no karada ni tokekonda watashi no sanjū pāsento no saibō-tachi to wa",
+    "japanese": "君（きみ）の体（からだ）に溶（と）けこんだ私（わたし）の30％の細胞（さいぼう）たちとは",
+    "chinese": "我融入你体内的那30%的细胞",
+    "audio": "audio/line009.mp3"
+  },
+  {
+    "romaji": "Dō yatte mo renraku dekinai koto ga wakatta",
+    "japanese": "どうやっても連絡（れんらく）できないことがわかった",
+    "chinese": "无论如何也联系不上了",
+    "audio": "audio/line010.mp3"
+  },
+  {
+    "romaji": "Kore ijō yume no naka de atte mo shōganai",
+    "japanese": "これ以上（いじょう）夢（ゆめ）の中（なか）で会（あ）ってもしょうがない",
+    "chinese": "再在梦里相见也解决不了问题了",
+    "audio": "audio/line011.mp3"
+  },
+  {
+    "romaji": "Daiichi ima",
+    "japanese": "第一（だいいち）いま",
+    "chinese": "况且现在现实世界中我们的处境可不容乐观",
+    "audio": "audio/line012.mp3"
+  },
+  {
+    "romaji": " genjitsu no sekai de wareware wa nonbiri shite irarenai jōkyō nanda ze",
+    "japanese": "現実（げんじつ）の世界（せかい）で我々（われわれ）はのんびりしていられない状況（じょうきょう）なんだぜ",
+    "chinese": "况且现在现实世界中我们的处境可不容乐观",
+    "audio": "audio/line013.mp3"
+  },
+  {
+    "romaji": " nonbiri shite irarenai jōkyō nanda ze",
+    "japanese": "のんびりしていられない状況（じょうきょう）なんだぜ",
+    "chinese": "况且现在现实世界中我们的处境可不容乐观",
+    "audio": "audio/line014.mp3"
+  },
+  {
+    "romaji": "Sō dakke",
+    "japanese": "そうだっけ",
+    "chinese": "是吗",
+    "audio": "audio/line015.mp3"
+  },
+  {
+    "romaji": "Mezamereba omoidasu yo",
+    "japanese": "目覚（めざ）めれば思（おも）い出（だ）すよ",
+    "chinese": "你醒了之后就会想起来了",
+    "audio": "audio/line016.mp3"
   }
 ]
